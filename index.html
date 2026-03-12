@@ -1,0 +1,1222 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>프로젝트 에코 - 방탈출 3D</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{overflow:hidden;background:#000;font-family:'Segoe UI','Noto Sans KR',sans-serif;color:#fff;cursor:none}
+#blocker{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);display:flex;align-items:center;justify-content:center;z-index:100;flex-direction:column}
+#title-screen{text-align:center}
+#title-screen h1{font-size:3.5em;letter-spacing:12px;color:#00e5ff;text-shadow:0 0 30px rgba(0,229,255,0.5);margin-bottom:10px;font-weight:300}
+#title-screen h2{font-size:1.1em;color:#aaa;letter-spacing:4px;margin-bottom:40px;font-weight:300}
+#title-screen .story{max-width:500px;color:#888;font-size:0.9em;line-height:1.8;margin-bottom:40px}
+#start-btn{padding:15px 60px;font-size:1.1em;background:transparent;border:1px solid #00e5ff;color:#00e5ff;cursor:pointer;letter-spacing:4px;transition:all 0.3s;font-family:inherit}
+#start-btn:hover{background:#00e5ff;color:#000}
+#click-to-play{display:none;text-align:center;cursor:pointer}
+#click-to-play p{font-size:1.2em;color:#aaa;letter-spacing:2px}
+#click-to-play .keys{margin-top:20px;color:#666;font-size:0.85em}
+#crosshair{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:50;pointer-events:none}
+#crosshair::before,#crosshair::after{content:'';position:absolute;background:#fff;opacity:0.7}
+#crosshair::before{width:2px;height:20px;left:50%;top:50%;transform:translate(-50%,-50%)}
+#crosshair::after{width:20px;height:2px;left:50%;top:50%;transform:translate(-50%,-50%)}
+#interact-prompt{position:fixed;top:55%;left:50%;transform:translateX(-50%);z-index:50;pointer-events:none;opacity:0;transition:opacity 0.2s;background:rgba(0,0,0,0.7);padding:8px 20px;border-radius:4px;font-size:0.9em;border:1px solid rgba(255,255,255,0.2)}
+#inventory-bar{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:50;display:flex;gap:8px;pointer-events:none}
+.inv-slot{width:60px;height:60px;border:1px solid rgba(255,255,255,0.3);background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;font-size:0.7em;text-align:center;border-radius:4px;padding:4px;transition:all 0.3s}
+.inv-slot.active{border-color:#00e5ff;box-shadow:0 0 10px rgba(0,229,255,0.3)}
+.inv-slot.filled{background:rgba(0,229,255,0.1)}
+#timer{position:fixed;top:20px;right:20px;z-index:50;font-size:1.3em;letter-spacing:2px;color:#aaa;font-variant-numeric:tabular-nums}
+#room-name{position:fixed;top:20px;left:20px;z-index:50;font-size:0.9em;color:#666;letter-spacing:2px}
+#dialog-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.8);z-index:200;display:none;align-items:center;justify-content:center}
+#dialog-box{max-width:500px;background:#111;border:1px solid #333;padding:30px;border-radius:8px;position:relative}
+#dialog-box h3{color:#00e5ff;margin-bottom:15px;font-weight:400;letter-spacing:2px}
+#dialog-box p{color:#ccc;line-height:1.8;font-size:0.95em}
+#dialog-close{position:absolute;top:10px;right:15px;background:none;border:none;color:#666;font-size:1.5em;cursor:pointer}
+#dialog-close:hover{color:#fff}
+#code-input-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);z-index:200;display:none;align-items:center;justify-content:center}
+#code-panel{background:#0a0a0a;border:1px solid #333;padding:30px;border-radius:8px;text-align:center;min-width:300px}
+#code-panel h3{color:#00e5ff;margin-bottom:5px;font-weight:400;letter-spacing:2px}
+#code-panel .subtitle{color:#666;font-size:0.8em;margin-bottom:20px}
+#code-display{font-size:2.5em;letter-spacing:15px;color:#fff;margin:20px 0;min-height:50px;font-family:monospace}
+#code-keypad{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;max-width:240px;margin:0 auto}
+#code-keypad button{padding:15px;font-size:1.2em;background:#1a1a1a;border:1px solid #333;color:#fff;cursor:pointer;border-radius:4px;transition:all 0.15s;font-family:inherit}
+#code-keypad button:hover{background:#333;border-color:#00e5ff}
+#code-keypad button:active{transform:scale(0.95)}
+#code-keypad button.action{background:#0d2b30;border-color:#00e5ff44}
+#code-result{margin-top:15px;min-height:24px;font-size:0.9em}
+#hint-btn{position:fixed;bottom:20px;right:20px;z-index:50;padding:8px 16px;background:rgba(0,0,0,0.6);border:1px solid #444;color:#888;font-size:0.8em;cursor:pointer;border-radius:4px;font-family:inherit;transition:all 0.3s}
+#hint-btn:hover{border-color:#ffab00;color:#ffab00}
+#hint-box{position:fixed;bottom:60px;right:20px;z-index:50;max-width:280px;background:rgba(0,0,0,0.85);border:1px solid #ffab00;padding:15px;border-radius:4px;display:none;font-size:0.85em;color:#ffab00;line-height:1.6}
+#fade-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:#000;z-index:300;pointer-events:none;opacity:0;transition:opacity 0.8s}
+#ending-screen{position:fixed;top:0;left:0;width:100%;height:100%;background:#000;z-index:400;display:none;align-items:center;justify-content:center;flex-direction:column;text-align:center}
+#ending-screen h1{font-size:2.5em;color:#00e5ff;letter-spacing:8px;margin-bottom:20px;font-weight:300}
+#ending-screen .ending-text{max-width:500px;color:#888;line-height:2;font-size:0.95em;margin-bottom:30px}
+#ending-screen .stats{color:#555;font-size:0.85em;margin-bottom:30px}
+#msg-flash{position:fixed;top:40%;left:50%;transform:translate(-50%,-50%);z-index:250;pointer-events:none;opacity:0;font-size:1.1em;color:#00e5ff;text-align:center;transition:opacity 0.4s;text-shadow:0 0 20px rgba(0,229,255,0.5)}
+</style>
+</head>
+<body>
+
+<div id="blocker">
+  <div id="title-screen">
+    <h1>PROJECT ECHO</h1>
+    <h2>프로젝트 에코</h2>
+    <div class="story">
+      눈을 떴다. 하얀 천장. 머리가 울린다.<br>
+      여기가 어디지? 나는... 누구지?<br><br>
+      기억이 없다. 하지만 한 가지는 확실하다.<br>
+      <strong style="color:#ccc">이곳에서 나가야 한다.</strong>
+    </div>
+    <button id="start-btn" onclick="startGame()">시 작</button>
+  </div>
+  <div id="click-to-play">
+    <p>클릭하여 시작</p>
+    <div class="keys">WASD 이동 | 마우스 시점 | 클릭 상호작용 | ESC 일시정지</div>
+  </div>
+</div>
+
+<div id="crosshair"></div>
+<div id="interact-prompt"></div>
+<div id="timer">00:00</div>
+<div id="room-name"></div>
+
+<div id="inventory-bar">
+  <div class="inv-slot" id="inv0"></div>
+  <div class="inv-slot" id="inv1"></div>
+  <div class="inv-slot" id="inv2"></div>
+  <div class="inv-slot" id="inv3"></div>
+  <div class="inv-slot" id="inv4"></div>
+</div>
+
+<div id="dialog-overlay">
+  <div id="dialog-box">
+    <button id="dialog-close" onclick="closeDialog()">&times;</button>
+    <h3 id="dialog-title"></h3>
+    <p id="dialog-content"></p>
+  </div>
+</div>
+
+<div id="code-input-overlay">
+  <div id="code-panel">
+    <h3 id="code-title">비밀번호 입력</h3>
+    <div class="subtitle" id="code-subtitle">4자리 숫자를 입력하세요</div>
+    <div id="code-display"></div>
+    <div id="code-keypad">
+      <button onclick="codePress('1')">1</button>
+      <button onclick="codePress('2')">2</button>
+      <button onclick="codePress('3')">3</button>
+      <button onclick="codePress('4')">4</button>
+      <button onclick="codePress('5')">5</button>
+      <button onclick="codePress('6')">6</button>
+      <button onclick="codePress('7')">7</button>
+      <button onclick="codePress('8')">8</button>
+      <button onclick="codePress('9')">9</button>
+      <button class="action" onclick="codePress('clear')">C</button>
+      <button onclick="codePress('0')">0</button>
+      <button class="action" onclick="codePress('enter')">OK</button>
+    </div>
+    <div id="code-result"></div>
+    <button style="margin-top:15px;padding:6px 20px;background:none;border:1px solid #444;color:#888;cursor:pointer;border-radius:4px;font-family:inherit" onclick="closeCodePanel()">닫기</button>
+  </div>
+</div>
+
+<button id="hint-btn" onclick="showHint()">힌트</button>
+<div id="hint-box"></div>
+
+<div id="fade-overlay"></div>
+<div id="msg-flash"></div>
+
+<div id="ending-screen">
+  <h1>탈 출 성 공</h1>
+  <div class="ending-text"></div>
+  <div class="stats"></div>
+  <button onclick="location.reload()" style="padding:12px 40px;background:transparent;border:1px solid #00e5ff;color:#00e5ff;cursor:pointer;letter-spacing:3px;font-size:1em;font-family:inherit">다시 플레이</button>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+// ============================================================
+// PROJECT ECHO - 방탈출 3D 게임
+// ============================================================
+
+// === AUDIO SYSTEM ===
+const AudioCtx = window.AudioContext || window.webkitAudioContext;
+let audioCtx;
+function initAudio(){audioCtx=new AudioCtx()}
+function playTone(freq,dur,type='sine',vol=0.15){
+  if(!audioCtx)return;
+  const o=audioCtx.createOscillator(),g=audioCtx.createGain();
+  o.type=type;o.frequency.value=freq;
+  g.gain.setValueAtTime(vol,audioCtx.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.001,audioCtx.currentTime+dur);
+  o.connect(g);g.connect(audioCtx.destination);
+  o.start();o.stop(audioCtx.currentTime+dur);
+}
+function sfxClick(){playTone(800,0.08,'sine',0.1);playTone(1200,0.05,'sine',0.05)}
+function sfxSuccess(){playTone(523,0.15);setTimeout(()=>playTone(659,0.15),100);setTimeout(()=>playTone(784,0.3),200)}
+function sfxFail(){playTone(200,0.3,'sawtooth',0.1);playTone(150,0.3,'sawtooth',0.08)}
+function sfxDoor(){playTone(100,0.6,'sawtooth',0.08);playTone(80,0.8,'sawtooth',0.05)}
+function sfxPickup(){playTone(600,0.1);setTimeout(()=>playTone(900,0.15),80)}
+function sfxAmbient(){
+  if(!audioCtx)return;
+  const buf=audioCtx.createBuffer(1,audioCtx.sampleRate*2,audioCtx.sampleRate);
+  const d=buf.getChannelData(0);
+  for(let i=0;i<d.length;i++)d[i]=(Math.random()*2-1)*0.015;
+  const src=audioCtx.createBufferSource(),g=audioCtx.createGain();
+  src.buffer=buf;src.loop=true;g.gain.value=0.3;
+  src.connect(g);g.connect(audioCtx.destination);src.start();
+}
+
+// === GAME STATE ===
+const state={
+  currentRoom:0,
+  inventory:[],
+  solvedPuzzles:new Set(),
+  discoveredClues:new Set(),
+  startTime:0,
+  elapsed:0,
+  hintsUsed:0,
+  paused:true,
+  codeTarget:null,
+  codeBuffer:'',
+  codeLength:4,
+  interactTarget:null
+};
+
+// === PUZZLE DEFINITIONS ===
+const PUZZLES={
+  drawer:{answer:'3719',hints:['벽을 자세히 살펴보세요. 누군가 무언가를 긁어 놓았습니다.','벽에 긁힌 숫자들을 순서대로 읽어보세요.','벽의 긁힌 자국: 3-7-1-9']},
+  safe:{answer:'258',hints:['실험실의 선반을 살펴보세요. 약품의 배치가 의미심장합니다.','약품 라벨의 색깔 순서에 주목하세요: 빨강, 초록, 파랑.','빨강(2번) 초록(5번) 파랑(8번) → 258']},
+  exit:{answer:'0847',hints:['지금까지 모은 문서의 숫자들을 다시 확인해보세요.','격리실 문서의 "제08구역"과 실험 기록의 "47번째"를 조합하세요.','08 + 47 = 0847']}
+};
+
+// === THREE.JS SETUP ===
+let scene,camera,renderer,raycaster,mouse;
+let objects=[],interactables=[];
+let moveForward=false,moveBackward=false,moveLeft=false,moveRight=false;
+let velocity=new THREE.Vector3();
+let direction=new THREE.Vector3();
+let euler=new THREE.Euler(0,0,0,'YXZ');
+let isLocked=false;
+const rooms=[];
+const PLAYER_HEIGHT=1.6;
+const MOVE_SPEED=35;
+const ROOM_CONFIGS=[
+  {name:'격리실',size:[6,3,6],offset:[0,0,0],color:0xe8e8e8,ambient:0x404050,light:0xffffff},
+  {name:'연구실',size:[8,3.5,8],offset:[20,0,0],color:0xd0d8e0,ambient:0x203040,light:0x88aaff},
+  {name:'관찰실',size:[10,4,10],offset:[45,0,0],color:0x1a1a2e,ambient:0x101020,light:0x334455}
+];
+
+function init(){
+  scene=new THREE.Scene();
+  scene.background=new THREE.Color(0x000000);
+  scene.fog=new THREE.Fog(0x000000,15,30);
+
+  camera=new THREE.PerspectiveCamera(65,window.innerWidth/window.innerHeight,0.1,100);
+  camera.position.set(0,PLAYER_HEIGHT,0);
+
+  renderer=new THREE.WebGLRenderer({antialias:true});
+  renderer.setSize(window.innerWidth,window.innerHeight);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+  renderer.shadowMap.enabled=true;
+  renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+  renderer.toneMapping=THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure=0.8;
+  document.body.appendChild(renderer.domElement);
+
+  raycaster=new THREE.Raycaster();
+  raycaster.far=5;
+  mouse=new THREE.Vector2(0,0);
+
+  buildRoom1();
+  buildRoom2();
+  buildRoom3();
+
+  setupControls();
+  animate();
+
+  window.addEventListener('resize',()=>{
+    camera.aspect=window.innerWidth/window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth,window.innerHeight);
+  });
+}
+
+// === GEOMETRY HELPERS ===
+function makeBox(w,h,d,color,x,y,z,opts={}){
+  const geo=new THREE.BoxGeometry(w,h,d);
+  const mat=new THREE.MeshStandardMaterial({
+    color,roughness:opts.roughness||0.7,metalness:opts.metalness||0.1,
+    emissive:opts.emissive||0x000000,emissiveIntensity:opts.emissiveIntensity||0
+  });
+  const mesh=new THREE.Mesh(geo,mat);
+  mesh.position.set(x,y,z);
+  mesh.castShadow=true;mesh.receiveShadow=true;
+  if(opts.name)mesh.name=opts.name;
+  if(opts.rotation)mesh.rotation.set(...opts.rotation);
+  return mesh;
+}
+
+function makeRoom(cfg,index){
+  const g=new THREE.Group();
+  const [w,h,d]=cfg.size;
+  const [ox,oy,oz]=cfg.offset;
+  g.position.set(ox,oy,oz);
+
+  // Floor
+  const floor=makeBox(w,0.1,d,0x333333,0,0,0,{roughness:0.9});
+  floor.receiveShadow=true;g.add(floor);
+
+  // Ceiling
+  g.add(makeBox(w,0.1,d,cfg.color,0,h,0,{roughness:0.8}));
+
+  // Walls
+  g.add(makeBox(w,h,0.15,cfg.color,0,h/2,-d/2,{roughness:0.8}));
+  g.add(makeBox(w,h,0.15,cfg.color,0,h/2,d/2,{roughness:0.8}));
+  g.add(makeBox(0.15,h,d,cfg.color,-w/2,h/2,0,{roughness:0.8}));
+  g.add(makeBox(0.15,h,d,cfg.color,w/2,h/2,0,{roughness:0.8}));
+
+  // Ambient light
+  const amb=new THREE.AmbientLight(cfg.ambient,0.4);
+  g.add(amb);
+
+  // Point light
+  const pl=new THREE.PointLight(cfg.light,1.2,w*2);
+  pl.position.set(0,h-0.3,0);
+  pl.castShadow=true;
+  pl.shadow.mapSize.set(512,512);
+  g.add(pl);
+
+  scene.add(g);
+  rooms[index]=g;
+  return g;
+}
+
+// === ROOM 1: 격리실 ===
+function buildRoom1(){
+  const cfg=ROOM_CONFIGS[0];
+  const g=makeRoom(cfg,0);
+  const [w,h,d]=cfg.size;
+
+  // Flickering light effect
+  const flicker=new THREE.PointLight(0xffffff,0.3,4);
+  flicker.position.set(1,h-0.5,-1);
+  g.add(flicker);
+  setInterval(()=>{flicker.intensity=0.2+Math.random()*0.3},150);
+
+  // Bed
+  const bedFrame=makeBox(1.8,0.35,0.8,0x8B7355,w/2-1.2,0.175,-d/2+0.7,{name:'bed'});
+  g.add(bedFrame);
+  const mattress=makeBox(1.7,0.1,0.7,0xcccccc,w/2-1.2,0.4,-d/2+0.7);
+  g.add(mattress);
+  const pillow=makeBox(0.35,0.08,0.5,0xdddddd,w/2-0.5,0.48,-d/2+0.7);
+  g.add(pillow);
+
+  // Desk
+  const deskTop=makeBox(1.2,0.05,0.6,0x7a6652,-(w/2-0.8),0.75,d/2-0.6);
+  g.add(deskTop);
+  g.add(makeBox(0.05,0.75,0.55,0x6a5642,-(w/2-0.25),0.375,d/2-0.6));
+  g.add(makeBox(0.05,0.75,0.55,0x6a5642,-(w/2-1.35),0.375,d/2-0.6));
+
+  // Drawer (interactable)
+  const drawer=makeBox(0.5,0.2,0.55,0x8a7662,-(w/2-0.55),0.55,d/2-0.6,{
+    name:'drawer',emissive:0x000000
+  });
+  drawer.userData={
+    type:'puzzle',puzzleId:'drawer',
+    prompt:'[E] 서랍 열기',
+    lockedMsg:'잠겨있다. 4자리 비밀번호가 필요하다.',
+    unlockedMsg:'서랍이 열렸다!'
+  };
+  g.add(drawer);
+  interactables.push({mesh:drawer,room:0});
+
+  // Chair
+  const chairSeat=makeBox(0.4,0.04,0.4,0x6a5642,-(w/2-0.8),0.45,d/2-1.4);
+  g.add(chairSeat);
+  g.add(makeBox(0.04,0.45,0.04,0x5a4632,-(w/2-1),0.225,d/2-1.6));
+  g.add(makeBox(0.04,0.45,0.04,0x5a4632,-(w/2-0.6),0.225,d/2-1.6));
+  g.add(makeBox(0.04,0.45,0.04,0x5a4632,-(w/2-1),0.225,d/2-1.2));
+  g.add(makeBox(0.04,0.45,0.04,0x5a4632,-(w/2-0.6),0.225,d/2-1.2));
+  const chairBack=makeBox(0.4,0.5,0.04,0x6a5642,-(w/2-0.8),0.7,d/2-1.6);
+  g.add(chairBack);
+
+  // Wall scratches (visual hint) - on the left wall
+  const scratchMark=makeBox(0.01,0.4,0.8,0x999999,-w/2+0.08,1.3,0,{
+    name:'wall_scratches',emissive:0x222222,emissiveIntensity:0.3
+  });
+  scratchMark.userData={
+    type:'examine',
+    prompt:'[E] 벽의 긁힌 자국 조사',
+    dialog:{
+      title:'벽의 긁힌 자국',
+      content:'누군가 손톱으로 벽을 긁어 숫자를 새겨놓았다.\n\n깊게 파인 자국이 선명하다:\n\n「 3 - 7 - 1 - 9 」\n\n...이건 누가 남긴 거지?'
+    }
+  };
+  g.add(scratchMark);
+  interactables.push({mesh:scratchMark,room:0});
+
+  // Spotlight on scratches
+  const scratchLight=new THREE.SpotLight(0xffffcc,0.8,5,Math.PI/6,0.5);
+  scratchLight.position.set(-w/2+1.5,2.5,0);
+  scratchLight.target.position.set(-w/2,1.3,0);
+  g.add(scratchLight);g.add(scratchLight.target);
+
+  // Note on bed (environmental storytelling)
+  const note=makeBox(0.2,0.005,0.15,0xffffee,w/2-1.5,0.46,-d/2+0.7,{
+    name:'note1',emissive:0x333300,emissiveIntensity:0.2
+  });
+  note.userData={
+    type:'examine',
+    prompt:'[E] 메모 읽기',
+    dialog:{
+      title:'구겨진 메모',
+      content:'피험자가 깨어나면 격리실에서 대기시킬 것.\n제08구역 프로토콜에 따라 기억 소거가\n완료될 때까지 외부 접촉을 차단한다.\n\n- 에코 프로젝트 관리자'
+    }
+  };
+  g.add(note);
+  interactables.push({mesh:note,room:0});
+
+  // Door to room 2 (on the front wall)
+  const door=makeBox(0.9,2.2,0.1,0x555566,0,1.1,d/2-0.05,{
+    name:'door1',emissive:0x000000
+  });
+  door.userData={
+    type:'door',targetRoom:1,
+    prompt:'[E] 문 열기',
+    requires:'keycard',
+    lockedMsg:'잠겨있다. 카드키가 필요한 것 같다.',
+  };
+  g.add(door);
+  interactables.push({mesh:door,room:0});
+
+  // Door frame
+  g.add(makeBox(0.08,2.3,0.15,0x444455,-0.5,1.15,d/2-0.05));
+  g.add(makeBox(0.08,2.3,0.15,0x444455,0.5,1.15,d/2-0.05));
+  g.add(makeBox(1.08,0.08,0.15,0x444455,0,2.3,d/2-0.05));
+
+  // Card reader next to door
+  const cardReader=makeBox(0.12,0.18,0.04,0x222233,0.6,1.3,d/2-0.05,{
+    name:'card_reader',emissive:0xff0000,emissiveIntensity:0.5
+  });
+  g.add(cardReader);
+
+  // Overturned cup (environmental storytelling)
+  const cup=new THREE.Mesh(
+    new THREE.CylinderGeometry(0.03,0.04,0.1,8),
+    new THREE.MeshStandardMaterial({color:0xffffff,roughness:0.3})
+  );
+  cup.position.set(-(w/2-0.5),0.78,d/2-0.5);
+  cup.rotation.z=Math.PI/2+0.3;
+  g.add(cup);
+
+  // Spill mark
+  const spill=makeBox(0.15,0.002,0.12,0x5a4020,-(w/2-0.35),0.76,d/2-0.5);
+  g.add(spill);
+}
+
+// === ROOM 2: 연구실 ===
+function buildRoom2(){
+  const cfg=ROOM_CONFIGS[1];
+  const g=makeRoom(cfg,1);
+  const [w,h,d]=cfg.size;
+
+  // Blue tinted spot lights
+  const spot1=new THREE.SpotLight(0x4488ff,0.6,10,Math.PI/4,0.5);
+  spot1.position.set(-2,h-0.3,-2);
+  spot1.target.position.set(-2,0,-2);
+  g.add(spot1);g.add(spot1.target);
+
+  const spot2=new THREE.SpotLight(0x4488ff,0.6,10,Math.PI/4,0.5);
+  spot2.position.set(2,h-0.3,2);
+  spot2.target.position.set(2,0,2);
+  g.add(spot2);g.add(spot2.target);
+
+  // Lab table (center)
+  const tableTop=makeBox(2.5,0.06,1,0x778899,0,0.9,0);
+  g.add(tableTop);
+  g.add(makeBox(0.06,0.9,0.06,0x667788,-1.1,0.45,-0.4));
+  g.add(makeBox(0.06,0.9,0.06,0x667788,1.1,0.45,-0.4));
+  g.add(makeBox(0.06,0.9,0.06,0x667788,-1.1,0.45,0.4));
+  g.add(makeBox(0.06,0.9,0.06,0x667788,1.1,0.45,0.4));
+
+  // Lab equipment on table
+  // Microscope
+  g.add(makeBox(0.15,0.3,0.15,0x333344,-0.5,1.1,0));
+  g.add(makeBox(0.05,0.2,0.05,0x333344,-0.5,1.35,0.05));
+  // Beakers
+  const beaker1=new THREE.Mesh(
+    new THREE.CylinderGeometry(0.04,0.05,0.15,8),
+    new THREE.MeshStandardMaterial({color:0x88aaff,transparent:true,opacity:0.5,roughness:0.1})
+  );
+  beaker1.position.set(0.3,1.0,0.1);g.add(beaker1);
+
+  const beaker2=new THREE.Mesh(
+    new THREE.CylinderGeometry(0.04,0.05,0.15,8),
+    new THREE.MeshStandardMaterial({color:0x88ffaa,transparent:true,opacity:0.5,roughness:0.1})
+  );
+  beaker2.position.set(0.5,1.0,0.1);g.add(beaker2);
+
+  // Chemical shelf (right wall) - the color puzzle
+  const shelf=makeBox(2,1.5,0.3,0x556677,w/2-0.2,1.2,0);
+  g.add(shelf);
+  // Shelf boards
+  g.add(makeBox(1.8,0.04,0.25,0x667788,w/2-0.2,0.7,0));
+  g.add(makeBox(1.8,0.04,0.25,0x667788,w/2-0.2,1.2,0));
+  g.add(makeBox(1.8,0.04,0.25,0x667788,w/2-0.2,1.7,0));
+
+  // Chemical bottles with colors (PUZZLE HINT: R=2, G=5, B=8)
+  const bottleColors=[
+    {c:0xff3333,label:'R-02',x:-0.6,y:1.35},
+    {c:0xffaa33,label:'O-04',x:-0.3,y:1.35},
+    {c:0x33ff33,label:'G-05',x:0,y:1.35},
+    {c:0x33ffff,label:'C-06',x:0.3,y:1.35},
+    {c:0x3333ff,label:'B-08',x:0.6,y:1.35},
+  ];
+
+  const chemShelf=makeBox(0.01,0.01,0.01,0x000000,w/2-0.2,1.35,0.05,{name:'chem_shelf'});
+  chemShelf.userData={
+    type:'examine',
+    prompt:'[E] 약품 선반 조사',
+    dialog:{
+      title:'약품 선반',
+      content:'선반에 약품들이 색깔별로 정렬되어 있다.\n\n빨강(R-02) | 주황(O-04) | 초록(G-05)\n청록(C-06) | 파랑(B-08)\n\n각 약품에 번호가 적혀있다.\n벽에 붙은 메모: "RGB 순서대로 투여할 것"'
+    }
+  };
+  g.add(chemShelf);
+  interactables.push({mesh:chemShelf,room:1});
+
+  bottleColors.forEach(b=>{
+    const bottle=new THREE.Mesh(
+      new THREE.CylinderGeometry(0.03,0.04,0.18,8),
+      new THREE.MeshStandardMaterial({color:b.c,roughness:0.2,metalness:0.1,
+        emissive:b.c,emissiveIntensity:0.15})
+    );
+    bottle.position.set(w/2-0.2+b.x,b.y,0.05);
+    g.add(bottle);
+  });
+
+  // Safe on back wall
+  const safe=makeBox(0.5,0.5,0.3,0x445566,0,1.2,-d/2+0.2,{
+    name:'safe',emissive:0x000000
+  });
+  safe.userData={
+    type:'puzzle',puzzleId:'safe',
+    prompt:'[E] 금고 열기',
+    lockedMsg:'잠겨있다. 3자리 비밀번호가 필요하다.',
+    unlockedMsg:'금고가 열렸다!'
+  };
+  g.add(safe);
+  interactables.push({mesh:safe,room:1});
+
+  // Safe handle
+  const handle=new THREE.Mesh(
+    new THREE.CylinderGeometry(0.02,0.02,0.15,8),
+    new THREE.MeshStandardMaterial({color:0x888899,metalness:0.8,roughness:0.2})
+  );
+  handle.position.set(0.15,1.2,-d/2+0.06);
+  handle.rotation.z=Math.PI/2;
+  g.add(handle);
+
+  // Computer monitor on left wall desk
+  const monDesk=makeBox(1.5,0.05,0.6,0x556666,-w/2+0.5,0.8,-1.5);
+  g.add(monDesk);
+  g.add(makeBox(0.05,0.8,0.05,0x445555,-w/2+0.3,0.4,-1.5));
+  g.add(makeBox(0.05,0.8,0.05,0x445555,-w/2+0.7,0.4,-1.5));
+
+  // Monitor
+  const monitor=makeBox(0.6,0.4,0.04,0x111122,-w/2+0.5,1.15,-1.7,{
+    name:'monitor',emissive:0x003366,emissiveIntensity:0.8
+  });
+  monitor.userData={
+    type:'examine',
+    prompt:'[E] 모니터 확인',
+    dialog:{
+      title:'실험 기록 터미널',
+      content:'[프로젝트 에코 - 47번째 실험 기록]\n\n피험자 의식 소거 완료.\n기억 재구성 프로토콜 진행 중...\n\n경고: 피험자가 시설을 인식할 경우\n즉시 제08구역 봉쇄 프로토콜을 실행할 것.\n\n현재 상태: ■■■ 관찰 중 ■■■'
+    }
+  };
+  g.add(monitor);
+  interactables.push({mesh:monitor,room:1});
+
+  // Monitor glow
+  const monGlow=new THREE.PointLight(0x3366ff,0.5,2);
+  monGlow.position.set(-w/2+0.5,1.15,-1.5);
+  g.add(monGlow);
+
+  // Door back to room 1 (back wall)
+  const doorBack=makeBox(0.9,2.2,0.1,0x555566,-2,1.1,d/2-0.05,{name:'door_back1'});
+  doorBack.userData={
+    type:'door',targetRoom:0,
+    prompt:'[E] 격리실로 돌아가기',
+    requires:null
+  };
+  g.add(doorBack);
+  interactables.push({mesh:doorBack,room:1});
+
+  // Door to room 3
+  const door2=makeBox(0.9,2.2,0.1,0x334455,0,1.1,-d/2+0.05,{
+    name:'door2',emissive:0x000000
+  });
+  door2.userData={
+    type:'door',targetRoom:2,
+    prompt:'[E] 문 열기',
+    requires:'master_key',
+    lockedMsg:'매우 단단한 문이다. 마스터 키가 필요하다.'
+  };
+  g.add(door2);
+  interactables.push({mesh:door2,room:2});
+
+  // Frame glow
+  g.add(makeBox(0.08,2.3,0.15,0x334455,-0.5,1.15,-d/2+0.05));
+  g.add(makeBox(0.08,2.3,0.15,0x334455,0.5,1.15,-d/2+0.05));
+  g.add(makeBox(1.08,0.08,0.15,0x334455,0,2.3,-d/2+0.05));
+
+  // Torn photo on table
+  const photo=makeBox(0.12,0.005,0.1,0xeeddcc,0.7,0.94,0.2,{
+    name:'photo',emissive:0x221100,emissiveIntensity:0.2
+  });
+  photo.userData={
+    type:'examine',
+    prompt:'[E] 찢어진 사진 조사',
+    dialog:{
+      title:'찢어진 사진',
+      content:'반으로 찢긴 사진.\n한쪽에는 연구복을 입은 사람이 있지만\n얼굴 부분이 찢겨 나갔다.\n\n뒷면에 흐릿한 글씨:\n"잊지 마. 네가 선택한 거야."'
+    }
+  };
+  g.add(photo);
+  interactables.push({mesh:photo,room:1});
+
+  // Whiteboard
+  const wb=makeBox(1.5,1,0.04,0xeeeeff,-w/2+0.05,1.5,1.5);
+  g.add(wb);
+  const wbText=makeBox(1.3,0.8,0.005,0xddddee,-w/2+0.07,1.5,1.5,{
+    name:'whiteboard',emissive:0x111122,emissiveIntensity:0.1
+  });
+  wbText.userData={
+    type:'examine',
+    prompt:'[E] 화이트보드 읽기',
+    dialog:{
+      title:'화이트보드',
+      content:'대부분 지워졌지만 일부 글씨가 남아있다:\n\n"에코 = 반향... 기억의 반향?"\n"피험자가 스스로 선택하게 해야 한다"\n"최종 단계: 자기 인식"\n\n아래에 작게: "미안하다"'
+    }
+  };
+  g.add(wbText);
+  interactables.push({mesh:wbText,room:1});
+}
+
+// === ROOM 3: 관찰실 ===
+function buildRoom3(){
+  const cfg=ROOM_CONFIGS[2];
+  const g=makeRoom(cfg,2);
+  const [w,h,d]=cfg.size;
+
+  // Dark atmospheric lighting
+  const redLight=new THREE.PointLight(0xff2200,0.3,8);
+  redLight.position.set(-3,h-0.5,-3);g.add(redLight);
+
+  const blueLight=new THREE.PointLight(0x2244ff,0.4,8);
+  blueLight.position.set(3,h-0.5,3);g.add(blueLight);
+
+  // Monitor wall (back wall - many screens)
+  for(let mx=-2;mx<=2;mx++){
+    for(let my=0;my<2;my++){
+      const mon=makeBox(0.8,0.5,0.05,0x111122,mx*1,1+my*0.7,-d/2+0.1,{
+        emissive:0x113355,emissiveIntensity:0.6+Math.random()*0.3
+      });
+      g.add(mon);
+    }
+  }
+  // Monitor glow
+  const monWallGlow=new THREE.PointLight(0x3355aa,0.8,6);
+  monWallGlow.position.set(0,1.5,-d/2+1);g.add(monWallGlow);
+
+  // Central desk
+  const cDesk=makeBox(2,0.06,1,0x2a2a3e,0,0.8,1);
+  g.add(cDesk);
+  g.add(makeBox(0.06,0.8,0.06,0x222233,-0.9,0.4,0.5));
+  g.add(makeBox(0.06,0.8,0.06,0x222233,0.9,0.4,0.5));
+  g.add(makeBox(0.06,0.8,0.06,0x222233,-0.9,0.4,1.5));
+  g.add(makeBox(0.06,0.8,0.06,0x222233,0.9,0.4,1.5));
+
+  // Files on desk
+  const files=makeBox(0.25,0.03,0.35,0xcc3333,-0.3,0.85,1,{
+    name:'files',emissive:0x330000,emissiveIntensity:0.3
+  });
+  files.userData={
+    type:'examine',
+    prompt:'[E] 기밀 파일 읽기',
+    dialog:{
+      title:'기밀 파일 - 프로젝트 에코 최종 보고서',
+      content:'[극비]\n\n피험자 코드명: 에코\n실제 이름: ■■■■\n\n프로젝트 개요:\n피험자는 자발적으로 기억 소거 실험에 참여.\n목적: 트라우마 기억의 선택적 제거.\n\n문제: 피험자가 실험 도중 모든 기억을 잃음.\n현재 피험자는 자신이 "갇혀있다"고 인식.\n\n진실: 피험자는 언제든 나갈 수 있었다.\n이 시설의 모든 문은... 피험자 스스로\n잠근 것이다.\n\n최종 관찰 메모:\n"당신이 이 글을 읽고 있다면,\n 당신은 기억을 되찾기 시작한 것입니다.\n 출구 코드는 당신이 이미 알고 있습니다.\n 제08구역, 47번째 실험.\n 기억하세요."'
+    }
+  };
+  g.add(files);
+  interactables.push({mesh:files,room:2});
+
+  // Monitor with CCTV view
+  const cctvMon=makeBox(0.6,0.4,0.04,0x111122,0.5,1.05,0.5,{
+    name:'cctv',emissive:0x004422,emissiveIntensity:0.7
+  });
+  cctvMon.userData={
+    type:'examine',
+    prompt:'[E] CCTV 모니터 확인',
+    dialog:{
+      title:'CCTV 모니터',
+      content:'모니터에 당신이 지나온 방들이 보인다.\n\n격리실... 연구실... 그리고 지금 이 방.\n\n화면 구석에 타임스탬프가 보인다.\n날짜가 전부 같다.\n\n같은 날, 같은 시간이 반복되고 있다.\n\n모니터 아래 작은 글씨:\n"루프 횟수: 47"'
+    }
+  };
+  g.add(cctvMon);
+  interactables.push({mesh:cctvMon,room:2});
+
+  // Mirror on right wall (reflecting player - thematic)
+  const mirror=makeBox(1.2,1.8,0.05,0x88aacc,w/2-0.08,1.3,0,{
+    name:'mirror',roughness:0.05,metalness:0.95,emissive:0x112233,emissiveIntensity:0.1
+  });
+  mirror.userData={
+    type:'examine',
+    prompt:'[E] 거울 보기',
+    dialog:{
+      title:'거울',
+      content:'거울에 비친 모습을 본다.\n\n...낯설다. 아니, 낯설어야 하는데\n어딘가 익숙하다.\n\n연구복을 입고 있다.\n가슴에 이름표: "에코 프로젝트 - 수석 연구원"\n\n...나는 피험자가 아니라\n연구원이었던 건가?\n\n아니면... 둘 다?'
+    }
+  };
+  g.add(mirror);
+  interactables.push({mesh:mirror,room:2});
+
+  // Exit door with keypad
+  const exitDoor=makeBox(1.2,2.5,0.1,0x443333,0,1.25,d/2-0.05,{
+    name:'exit_door',emissive:0x110000,emissiveIntensity:0.2
+  });
+  exitDoor.userData={
+    type:'puzzle',puzzleId:'exit',
+    prompt:'[E] 탈출구 - 비밀번호 입력',
+    lockedMsg:'최종 출구. 4자리 코드가 필요하다.',
+    unlockedMsg:'문이 열린다...'
+  };
+  g.add(exitDoor);
+  interactables.push({mesh:exitDoor,room:2});
+
+  // EXIT sign
+  const exitSign=makeBox(0.4,0.15,0.03,0x111111,0,2.6,d/2-0.1,{
+    emissive:0xff0000,emissiveIntensity:1
+  });
+  g.add(exitSign);
+  const exitGlow=new THREE.PointLight(0xff0000,0.4,3);
+  exitGlow.position.set(0,2.5,d/2-0.5);g.add(exitGlow);
+
+  // Door back to room 2
+  const doorBack=makeBox(0.8,2.1,0.1,0x334455,-3,1.05,-d/2+0.05,{name:'door_back2'});
+  doorBack.userData={
+    type:'door',targetRoom:1,
+    prompt:'[E] 연구실로 돌아가기',
+    requires:null
+  };
+  g.add(doorBack);
+  interactables.push({mesh:doorBack,room:2});
+
+  // Chair fallen over (env storytelling)
+  const fallenChair=makeBox(0.4,0.04,0.4,0x2a2a3e,-2,0.22,2);
+  fallenChair.rotation.x=Math.PI/2+0.2;
+  fallenChair.rotation.z=0.3;
+  g.add(fallenChair);
+
+  // Scattered papers on floor
+  for(let i=0;i<5;i++){
+    const paper=makeBox(0.2,0.003,0.28,0xddddcc,
+      -1+Math.random()*3,0.05,0.5+Math.random()*2);
+    paper.rotation.y=Math.random()*Math.PI;
+    g.add(paper);
+  }
+}
+
+// === CONTROLS ===
+function setupControls(){
+  document.addEventListener('keydown',e=>{
+    if(state.paused)return;
+    switch(e.code){
+      case'KeyW':case'ArrowUp':moveForward=true;break;
+      case'KeyS':case'ArrowDown':moveBackward=true;break;
+      case'KeyA':case'ArrowLeft':moveLeft=true;break;
+      case'KeyD':case'ArrowRight':moveRight=true;break;
+      case'KeyE':interact();break;
+    }
+  });
+  document.addEventListener('keyup',e=>{
+    switch(e.code){
+      case'KeyW':case'ArrowUp':moveForward=false;break;
+      case'KeyS':case'ArrowDown':moveBackward=false;break;
+      case'KeyA':case'ArrowLeft':moveLeft=false;break;
+      case'KeyD':case'ArrowRight':moveRight=false;break;
+    }
+  });
+  document.addEventListener('mousemove',e=>{
+    if(!isLocked||state.paused)return;
+    const sensitivity=0.002;
+    euler.setFromQuaternion(camera.quaternion);
+    euler.y-=e.movementX*sensitivity;
+    euler.x-=e.movementY*sensitivity;
+    euler.x=Math.max(-Math.PI/2+0.1,Math.min(Math.PI/2-0.1,euler.x));
+    camera.quaternion.setFromEuler(euler);
+  });
+  document.addEventListener('click',()=>{
+    if(!isLocked&&!state.paused){
+      renderer.domElement.requestPointerLock();
+    }
+  });
+  document.addEventListener('pointerlockchange',()=>{
+    isLocked=!!document.pointerLockElement;
+    const blocker=document.getElementById('blocker');
+    const clickToPlay=document.getElementById('click-to-play');
+    const titleScreen=document.getElementById('title-screen');
+    if(isLocked){
+      blocker.style.display='none';
+      state.paused=false;
+    }else if(!state.paused){
+      blocker.style.display='flex';
+      titleScreen.style.display='none';
+      clickToPlay.style.display='block';
+      state.paused=true;
+    }
+  });
+}
+
+// === MOVEMENT & COLLISION ===
+function updateMovement(delta){
+  if(state.paused||!isLocked)return;
+
+  velocity.x-=velocity.x*8*delta;
+  velocity.z-=velocity.z*8*delta;
+
+  direction.z=Number(moveForward)-Number(moveBackward);
+  direction.x=Number(moveRight)-Number(moveLeft);
+  direction.normalize();
+
+  if(moveForward||moveBackward)velocity.z-=direction.z*MOVE_SPEED*delta;
+  if(moveLeft||moveRight)velocity.x-=direction.x*MOVE_SPEED*delta;
+
+  const forward=new THREE.Vector3();
+  camera.getWorldDirection(forward);
+  forward.y=0;forward.normalize();
+
+  const right=new THREE.Vector3();
+  right.crossVectors(forward,new THREE.Vector3(0,1,0)).normalize();
+
+  const newPos=camera.position.clone();
+  newPos.add(forward.multiplyScalar(-velocity.z*delta));
+  newPos.add(right.multiplyScalar(velocity.x*delta));
+
+  // Collision with room bounds
+  const rc=ROOM_CONFIGS[state.currentRoom];
+  const [rw,,rd]=rc.size;
+  const [ox,,oz]=rc.offset;
+  const margin=0.3;
+
+  newPos.x=Math.max(ox-rw/2+margin,Math.min(ox+rw/2-margin,newPos.x));
+  newPos.z=Math.max(oz-rd/2+margin,Math.min(oz+rd/2-margin,newPos.z));
+  newPos.y=PLAYER_HEIGHT;
+
+  camera.position.copy(newPos);
+}
+
+// === INTERACTION SYSTEM ===
+function updateInteraction(){
+  if(state.paused)return;
+
+  raycaster.set(camera.position,camera.getWorldDirection(new THREE.Vector3()));
+
+  const roomInteractables=interactables
+    .filter(i=>i.room===state.currentRoom)
+    .map(i=>i.mesh);
+
+  const hits=raycaster.intersectObjects(roomInteractables,false);
+  const prompt=document.getElementById('interact-prompt');
+
+  // Reset previous hover
+  if(state.interactTarget){
+    const mat=state.interactTarget.material;
+    if(mat._origEmissive!==undefined){
+      mat.emissive.setHex(mat._origEmissive);
+      mat.emissiveIntensity=mat._origEmissiveInt||0;
+    }
+  }
+
+  if(hits.length>0){
+    const obj=hits[0].object;
+    if(obj.userData.prompt){
+      prompt.textContent=obj.userData.prompt;
+      prompt.style.opacity='1';
+      state.interactTarget=obj;
+
+      // Hover glow
+      const mat=obj.material;
+      if(mat._origEmissive===undefined){
+        mat._origEmissive=mat.emissive.getHex();
+        mat._origEmissiveInt=mat.emissiveIntensity;
+      }
+      mat.emissive.setHex(0x00e5ff);
+      mat.emissiveIntensity=0.3;
+    }
+  }else{
+    prompt.style.opacity='0';
+    state.interactTarget=null;
+  }
+}
+
+function interact(){
+  const obj=state.interactTarget;
+  if(!obj)return;
+
+  sfxClick();
+  const data=obj.userData;
+
+  switch(data.type){
+    case'examine':
+      if(data.dialog){
+        showDialog(data.dialog.title,data.dialog.content);
+        // Track discovered clues
+        if(obj.name)state.discoveredClues.add(obj.name);
+      }
+      break;
+
+    case'puzzle':
+      if(state.solvedPuzzles.has(data.puzzleId)){
+        flashMsg('이미 열려있다.');
+        return;
+      }
+      const puzzle=PUZZLES[data.puzzleId];
+      state.codeTarget=data.puzzleId;
+      state.codeBuffer='';
+      state.codeLength=puzzle.answer.length;
+      document.getElementById('code-title').textContent=
+        data.puzzleId==='drawer'?'서랍 잠금장치':
+        data.puzzleId==='safe'?'금고 잠금장치':'탈출구 키패드';
+      document.getElementById('code-subtitle').textContent=
+        puzzle.answer.length+'자리 숫자를 입력하세요';
+      document.getElementById('code-display').textContent='';
+      document.getElementById('code-result').textContent='';
+      document.getElementById('code-input-overlay').style.display='flex';
+      document.exitPointerLock();
+      break;
+
+    case'door':
+      if(data.requires&&!state.inventory.includes(data.requires)){
+        flashMsg(data.lockedMsg||'잠겨있다.');
+        sfxFail();
+        return;
+      }
+      sfxDoor();
+      transitionToRoom(data.targetRoom);
+      break;
+  }
+}
+
+// === CODE INPUT ===
+function codePress(key){
+  if(key==='clear'){
+    state.codeBuffer='';
+    document.getElementById('code-display').textContent='';
+    document.getElementById('code-result').textContent='';
+    sfxClick();
+    return;
+  }
+  if(key==='enter'){
+    checkCode();
+    return;
+  }
+  if(state.codeBuffer.length<state.codeLength){
+    state.codeBuffer+=key;
+    document.getElementById('code-display').textContent=state.codeBuffer;
+    sfxClick();
+  }
+}
+
+function checkCode(){
+  const puzzle=PUZZLES[state.codeTarget];
+  const result=document.getElementById('code-result');
+
+  if(state.codeBuffer===puzzle.answer){
+    // Success!
+    sfxSuccess();
+    state.solvedPuzzles.add(state.codeTarget);
+    result.style.color='#00e5ff';
+    result.textContent='해제 성공!';
+
+    // Give rewards
+    if(state.codeTarget==='drawer'){
+      addItem('keycard','카드키');
+      addItem('note_fragment','메모 조각');
+      setTimeout(()=>flashMsg('서랍에서 카드키와 메모 조각을 발견했다.'),500);
+    }else if(state.codeTarget==='safe'){
+      addItem('master_key','마스터 키');
+      addItem('torn_photo2','사진 조각');
+      setTimeout(()=>flashMsg('금고에서 마스터 키와 사진 조각을 발견했다.'),500);
+    }else if(state.codeTarget==='exit'){
+      setTimeout(()=>{
+        closeCodePanel();
+        triggerEnding();
+      },800);
+      return;
+    }
+
+    // Update door visuals
+    updateDoorVisuals();
+
+    setTimeout(()=>closeCodePanel(),1200);
+  }else{
+    sfxFail();
+    result.style.color='#ff4444';
+    result.textContent='틀렸습니다';
+    state.codeBuffer='';
+    setTimeout(()=>{
+      document.getElementById('code-display').textContent='';
+      result.textContent='';
+    },1000);
+  }
+}
+
+function closeCodePanel(){
+  document.getElementById('code-input-overlay').style.display='none';
+  state.codeTarget=null;
+  state.codeBuffer='';
+  // Re-lock pointer after a brief delay
+  setTimeout(()=>{
+    if(!state.paused)renderer.domElement.requestPointerLock();
+  },100);
+}
+
+// === DOOR VISUAL UPDATES ===
+function updateDoorVisuals(){
+  interactables.forEach(({mesh})=>{
+    if(mesh.userData.type==='door'){
+      const req=mesh.userData.requires;
+      if(req&&state.inventory.includes(req)){
+        // Make door glow green to indicate it can be opened
+        mesh.material.emissive.setHex(0x005500);
+        mesh.material.emissiveIntensity=0.3;
+        mesh.material._origEmissive=0x005500;
+        mesh.material._origEmissiveInt=0.3;
+      }
+    }
+  });
+}
+
+// === INVENTORY ===
+function addItem(id,name){
+  if(state.inventory.includes(id))return;
+  state.inventory.push(id);
+  sfxPickup();
+  updateInventoryUI();
+}
+
+function updateInventoryUI(){
+  for(let i=0;i<5;i++){
+    const slot=document.getElementById('inv'+i);
+    if(i<state.inventory.length){
+      const names={
+        keycard:'카드키',note_fragment:'메모 조각',
+        master_key:'마스터키',torn_photo2:'사진 조각'
+      };
+      slot.textContent=names[state.inventory[i]]||state.inventory[i];
+      slot.classList.add('filled');
+    }else{
+      slot.textContent='';
+      slot.classList.remove('filled');
+    }
+  }
+}
+
+// === ROOM TRANSITIONS ===
+function transitionToRoom(roomIndex){
+  const fade=document.getElementById('fade-overlay');
+  fade.style.opacity='1';
+  state.paused=true;
+
+  setTimeout(()=>{
+    // Hide all rooms, show target
+    rooms.forEach((r,i)=>{r.visible=(i===roomIndex)});
+    state.currentRoom=roomIndex;
+
+    // Position player
+    const rc=ROOM_CONFIGS[roomIndex];
+    const [ox,,oz]=rc.offset;
+    camera.position.set(ox,PLAYER_HEIGHT,oz);
+
+    // Update room name
+    document.getElementById('room-name').textContent=rc.name;
+
+    // Update fog color per room
+    const fogColors=[0x0a0a0a,0x050510,0x020208];
+    scene.fog.color.setHex(fogColors[roomIndex]);
+    scene.background.setHex(fogColors[roomIndex]);
+
+    setTimeout(()=>{
+      fade.style.opacity='0';
+      state.paused=false;
+      if(!document.pointerLockElement){
+        renderer.domElement.requestPointerLock();
+      }
+    },600);
+  },800);
+}
+
+// === DIALOG ===
+function showDialog(title,content){
+  document.getElementById('dialog-title').textContent=title;
+  document.getElementById('dialog-content').textContent=content;
+  document.getElementById('dialog-overlay').style.display='flex';
+  document.exitPointerLock();
+}
+
+function closeDialog(){
+  document.getElementById('dialog-overlay').style.display='none';
+  setTimeout(()=>{
+    if(!state.paused)renderer.domElement.requestPointerLock();
+  },100);
+}
+
+// === FLASH MESSAGE ===
+function flashMsg(text){
+  const el=document.getElementById('msg-flash');
+  el.textContent=text;
+  el.style.opacity='1';
+  setTimeout(()=>{el.style.opacity='0'},2500);
+}
+
+// === HINTS ===
+function showHint(){
+  // Determine current puzzle context
+  let currentPuzzle=null;
+  if(state.currentRoom===0&&!state.solvedPuzzles.has('drawer'))currentPuzzle='drawer';
+  else if(state.currentRoom===1&&!state.solvedPuzzles.has('safe'))currentPuzzle='safe';
+  else if(state.currentRoom===2&&!state.solvedPuzzles.has('exit'))currentPuzzle='exit';
+  else if(state.currentRoom===0&&state.solvedPuzzles.has('drawer')&&!state.inventory.includes('keycard'))
+    currentPuzzle=null;
+  else if(state.currentRoom===0){
+    document.getElementById('hint-box').textContent='카드키를 사용해서 문을 열어보세요.';
+    document.getElementById('hint-box').style.display='block';
+    state.hintsUsed++;
+    setTimeout(()=>{document.getElementById('hint-box').style.display='none'},5000);
+    return;
+  }
+
+  if(!currentPuzzle){
+    document.getElementById('hint-box').textContent='주변을 더 탐색해보세요.';
+    document.getElementById('hint-box').style.display='block';
+    setTimeout(()=>{document.getElementById('hint-box').style.display='none'},4000);
+    return;
+  }
+
+  const puzzle=PUZZLES[currentPuzzle];
+  const hintLevel=Math.min(state.hintsUsed,2);
+  document.getElementById('hint-box').textContent=puzzle.hints[hintLevel];
+  document.getElementById('hint-box').style.display='block';
+  state.hintsUsed++;
+  setTimeout(()=>{document.getElementById('hint-box').style.display='none'},6000);
+}
+
+// === TIMER ===
+function updateTimer(){
+  if(state.paused||!state.startTime)return;
+  state.elapsed=Math.floor((Date.now()-state.startTime)/1000);
+  const m=String(Math.floor(state.elapsed/60)).padStart(2,'0');
+  const s=String(state.elapsed%60).padStart(2,'0');
+  document.getElementById('timer').textContent=m+':'+s;
+}
+
+// === ENDING ===
+function triggerEnding(){
+  const fade=document.getElementById('fade-overlay');
+  fade.style.transition='opacity 2s';
+  fade.style.opacity='1';
+  document.exitPointerLock();
+  state.paused=true;
+
+  setTimeout(()=>{
+    const ending=document.getElementById('ending-screen');
+    ending.style.display='flex';
+
+    const m=String(Math.floor(state.elapsed/60)).padStart(2,'0');
+    const s=String(state.elapsed%60).padStart(2,'0');
+
+    ending.querySelector('.ending-text').innerHTML=
+      '문이 열리고, 빛이 쏟아진다.<br><br>'+
+      '기억이 돌아온다. 파편처럼, 그리고 폭포처럼.<br><br>'+
+      '당신은 에코 프로젝트의 수석 연구원이었다.<br>'+
+      '지울 수 없는 기억을 스스로 지우기로 선택했다.<br>'+
+      '하지만 기억은 완전히 사라지지 않았다.<br><br>'+
+      '반향처럼... 에코처럼... 계속 되돌아왔다.<br><br>'+
+      '<span style="color:#00e5ff">47번의 루프 끝에, 당신은 마침내<br>기억하기로 선택했다.</span>';
+
+    ending.querySelector('.stats').innerHTML=
+      '클리어 시간: '+m+':'+s+'<br>'+
+      '힌트 사용: '+state.hintsUsed+'회<br>'+
+      '발견한 단서: '+state.discoveredClues.size+'개';
+
+    fade.style.opacity='0';
+  },2500);
+}
+
+// === ANIMATION LOOP ===
+let prevTime=performance.now();
+
+function animate(){
+  requestAnimationFrame(animate);
+
+  const time=performance.now();
+  const delta=(time-prevTime)/1000;
+  prevTime=time;
+
+  if(!state.paused){
+    updateMovement(Math.min(delta,0.1));
+    updateInteraction();
+    updateTimer();
+  }
+
+  renderer.render(scene,camera);
+}
+
+// === START GAME ===
+function startGame(){
+  initAudio();
+  sfxAmbient();
+
+  document.getElementById('title-screen').style.display='none';
+  document.getElementById('click-to-play').style.display='block';
+
+  init();
+
+  // Show only room 1
+  rooms.forEach((r,i)=>{r.visible=(i===0)});
+  state.currentRoom=0;
+  state.startTime=Date.now();
+  state.paused=false;
+
+  document.getElementById('room-name').textContent='격리실';
+
+  // Try to lock pointer
+  renderer.domElement.requestPointerLock();
+}
+
+// === KEYBOARD SHORTCUT FOR DIALOG ===
+document.addEventListener('keydown',e=>{
+  if(e.code==='Escape'){
+    if(document.getElementById('dialog-overlay').style.display==='flex'){
+      closeDialog();
+      e.preventDefault();
+    }
+    if(document.getElementById('code-input-overlay').style.display==='flex'){
+      closeCodePanel();
+      e.preventDefault();
+    }
+  }
+  if(e.code==='KeyE'){
+    if(document.getElementById('dialog-overlay').style.display==='flex'){
+      closeDialog();
+    }
+  }
+});
+</script>
+</body>
+</html>
