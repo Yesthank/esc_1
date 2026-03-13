@@ -1347,8 +1347,8 @@ function setupMobile(){
         const dx=t.clientX-lookLastX;
         const dy=t.clientY-lookLastY;
         euler.setFromQuaternion(camera.quaternion);
-        euler.y-=dx*sensitivity;
-        euler.x-=dy*sensitivity;
+        euler.y+=dx*sensitivity;
+        euler.x+=dy*sensitivity;
         euler.x=Math.max(-Math.PI/2+0.1,Math.min(Math.PI/2-0.1,euler.x));
         camera.quaternion.setFromEuler(euler);
         lookLastX=t.clientX;lookLastY=t.clientY;
