@@ -32,7 +32,7 @@ body.playing{cursor:none}
 #dialog-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.8);z-index:200;display:none;align-items:center;justify-content:center}
 #dialog-box{max-width:500px;background:#111;border:1px solid #333;padding:30px;border-radius:8px;position:relative}
 #dialog-box h3{color:#00e5ff;margin-bottom:15px;font-weight:400;letter-spacing:2px}
-#dialog-box p{color:#ccc;line-height:1.8;font-size:0.95em}
+#dialog-box p{color:#ccc;line-height:1.8;font-size:0.95em;white-space:pre-line}
 #dialog-close{position:absolute;top:10px;right:15px;background:none;border:none;color:#666;font-size:1.5em;cursor:pointer}
 #dialog-close:hover{color:#fff}
 #code-input-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);z-index:200;display:none;align-items:center;justify-content:center}
@@ -214,9 +214,9 @@ const state={
 
 // === PUZZLE DEFINITIONS ===
 const PUZZLES={
-  drawer:{answer:'3719',hints:['벽을 자세히 살펴보세요. 누군가 무언가를 긁어 놓았습니다.','벽에 긁힌 숫자들을 순서대로 읽어보세요.','벽의 긁힌 자국: 3-7-1-9']},
-  safe:{answer:'258',hints:['실험실의 선반을 살펴보세요. 약품의 배치가 의미심장합니다.','약품 라벨의 색깔 순서에 주목하세요: 빨강, 초록, 파랑.','빨강(2번) 초록(5번) 파랑(8번) → 258']},
-  exit:{answer:'0847',hints:['지금까지 모은 문서의 숫자들을 다시 확인해보세요.','격리실 문서의 "제08구역"과 실험 기록의 "47번째"를 조합하세요.','08 + 47 = 0847']}
+  drawer:{answer:'4917',hints:['벽의 숫자가 진짜 답일까요? 다른 단서를 찾아보세요.','베개 밑을 확인하셨나요? 메모의 관리 번호들을 다시 읽어보세요.','구역(04)→차수(9)→피험자(17) → 4917']},
+  safe:{answer:'852',hints:['RGB 숫자를 그대로 입력하는 게 맞을까요? "에코 보정"에 대해 찾아보세요.','화이트보드의 함수 f(x)=10-x를 RGB 약품 번호에 적용해보세요.','R=02→8, G=05→5, B=08→2 (10에서 뺀 값) → 852']},
+  exit:{answer:'2115',hints:['이 코드는 이전 방들에서 풀었던 퍼즐과 관련이 있습니다.','각 방에서 입력했던 해제 코드의 각 자릿수를 더해보세요.','격리실 4+9+1+7=21, 연구실 8+5+2=15 → 2115']}
 };
 
 // === THREE.JS SETUP ===
@@ -379,7 +379,7 @@ function buildRoom1(){
     prompt:'[E] 벽의 긁힌 자국 조사',
     dialog:{
       title:'벽의 긁힌 자국',
-      content:'누군가 손톱으로 벽을 긁어 숫자를 새겨놓았다.\n\n깊게 파인 자국이 선명하다:\n\n「 3 - 7 - 1 - 9 」\n\n...이건 누가 남긴 거지?'
+      content:'누군가 손톱으로 벽을 긁어 숫자를 새겨놓았다.\n\n깊게 파인 자국이 선명하다:\n\n「 3 - 7 - 1 - 9 」\n\n그 아래에 더 작고 흐릿한 글씨:\n「 이것이 아니다 」\n\n...같은 손으로 쓴 건가, 다른 사람인가?'
     }
   };
   g.add(scratchMark);
@@ -400,11 +400,26 @@ function buildRoom1(){
     prompt:'[E] 메모 읽기',
     dialog:{
       title:'구겨진 메모',
-      content:'피험자가 깨어나면 격리실에서 대기시킬 것.\n제08구역 프로토콜에 따라 기억 소거가\n완료될 때까지 외부 접촉을 차단한다.\n\n- 에코 프로젝트 관리자'
+      content:'피험자 제17호 격리 보고서\n\n제04구역, 제9차 실험 프로토콜에 따라\n기억 소거가 완료될 때까지 외부 접촉을 차단한다.\n격리 기간: 무기한\n\n경고: 피험자가 벽에 거짓 코드를 새기는\n행동이 관찰됨. 탈출 시도 감지 시\n즉시 제08구역으로 이송할 것.\n\n- 에코 프로젝트 관리자'
     }
   };
   g.add(note);
   interactables.push({mesh:note,room:0});
+
+  // Under pillow clue
+  const pillowClue=makeBox(0.15,0.003,0.1,0xeeeedd,w/2-0.5,0.43,-d/2+0.7,{
+    name:'pillow_clue',emissive:0x222200,emissiveIntensity:0.15
+  });
+  pillowClue.userData={
+    type:'examine',
+    prompt:'[E] 베개 밑 확인',
+    dialog:{
+      title:'베개 밑의 쪽지',
+      content:'이건... 내 필체다. 이전 루프의 내가 남긴 건가?\n\n"벽의 코드는 네가 의도적으로 남긴 함정이다.\n다음 루프의 자신을 시험하기 위해.\n\n진짜 코드는 이 방의 관리 번호들 안에 있다.\n피험자 번호, 구역, 실험 차수.\n\n순서는: 구역 → 차수 → 피험자.\n\n기억해. 모든 것은 네가 설계했다."'
+    }
+  };
+  g.add(pillowClue);
+  interactables.push({mesh:pillowClue,room:0});
 
   // Door to room 2 (on the front wall)
   const door=makeBox(0.9,2.2,0.1,0x555566,0,1.1,d/2-0.05,{
@@ -415,6 +430,7 @@ function buildRoom1(){
     prompt:'[E] 문 열기',
     requires:'keycard',
     lockedMsg:'잠겨있다. 카드키가 필요한 것 같다.',
+    spawnLocal:{x:-2,z:3.5},faceY:0
   };
   g.add(door);
   interactables.push({mesh:door,room:0});
@@ -509,7 +525,7 @@ function buildRoom2(){
     prompt:'[E] 약품 선반 조사',
     dialog:{
       title:'약품 선반',
-      content:'선반에 약품들이 색깔별로 정렬되어 있다.\n\n빨강(R-02) | 주황(O-04) | 초록(G-05)\n청록(C-06) | 파랑(B-08)\n\n각 약품에 번호가 적혀있다.\n벽에 붙은 메모: "RGB 순서대로 투여할 것"'
+      content:'선반에 약품들이 색깔별로 정렬되어 있다.\n\n빨강(R-02) | 주황(O-04) | 초록(G-05)\n청록(C-06) | 파랑(B-08)\n\n각 약품에 번호가 적혀있다.\n\n벽에 붙은 지시서:\n"투여 순서: RGB 프로토콜\n단, 에코 보정 적용 — 반향값을 사용할 것"'
     }
   };
   g.add(chemShelf);
@@ -562,7 +578,7 @@ function buildRoom2(){
     prompt:'[E] 모니터 확인',
     dialog:{
       title:'실험 기록 터미널',
-      content:'[프로젝트 에코 - 47번째 실험 기록]\n\n피험자 의식 소거 완료.\n기억 재구성 프로토콜 진행 중...\n\n경고: 피험자가 시설을 인식할 경우\n즉시 제08구역 봉쇄 프로토콜을 실행할 것.\n\n현재 상태: ■■■ 관찰 중 ■■■'
+      content:'[프로젝트 에코 - 47번째 실험 기록]\n\n피험자 의식 소거 완료.\n기억 재구성 프로토콜 진행 중...\n\n에코 보정 테이블:\n원본 → 반향\n 01 → 09\n 02 → 08\n 03 → 07\n ...\n\n금고 접근 코드는 보정된 투여 순서입니다.\n\n경고: 피험자가 시설을 인식할 경우\n즉시 제08구역 봉쇄 프로토콜을 실행할 것.'
     }
   };
   g.add(monitor);
@@ -578,7 +594,8 @@ function buildRoom2(){
   doorBack.userData={
     type:'door',targetRoom:0,
     prompt:'[E] 격리실로 돌아가기',
-    requires:null
+    requires:null,
+    spawnLocal:{x:0,z:2.5},faceY:0
   };
   g.add(doorBack);
   interactables.push({mesh:doorBack,room:1});
@@ -591,7 +608,8 @@ function buildRoom2(){
     type:'door',targetRoom:2,
     prompt:'[E] 문 열기',
     requires:'master_key',
-    lockedMsg:'매우 단단한 문이다. 마스터 키가 필요하다.'
+    lockedMsg:'매우 단단한 문이다. 마스터 키가 필요하다.',
+    spawnLocal:{x:-3,z:-4.5},faceY:Math.PI
   };
   g.add(door2);
   interactables.push({mesh:door2,room:2});
@@ -610,7 +628,7 @@ function buildRoom2(){
     prompt:'[E] 찢어진 사진 조사',
     dialog:{
       title:'찢어진 사진',
-      content:'반으로 찢긴 사진.\n한쪽에는 연구복을 입은 사람이 있지만\n얼굴 부분이 찢겨 나갔다.\n\n뒷면에 흐릿한 글씨:\n"잊지 마. 네가 선택한 거야."'
+      content:'반으로 찢긴 사진.\n한쪽에는 연구복을 입은 사람이 있지만\n얼굴 부분이 찢겨 나갔다.\n\n뒷면에 흐릿한 글씨:\n"잊지 마. 네가 선택한 거야.\n금고는 네가 직접 잠갔다.\nRGB의 반향을 기억해."'
     }
   };
   g.add(photo);
@@ -627,7 +645,7 @@ function buildRoom2(){
     prompt:'[E] 화이트보드 읽기',
     dialog:{
       title:'화이트보드',
-      content:'대부분 지워졌지만 일부 글씨가 남아있다:\n\n"에코 = 반향... 기억의 반향?"\n"피험자가 스스로 선택하게 해야 한다"\n"최종 단계: 자기 인식"\n\n아래에 작게: "미안하다"'
+      content:'대부분 지워졌지만 일부 글씨가 남아있다:\n\n"에코 = 반향... 기억의 반향?"\n"모든 값은 되돌아온다: f(x) = 10 - x"\n"피험자가 스스로 선택하게 해야 한다"\n"최종 단계: 자기 인식"\n\n아래에 작게: "미안하다"'
     }
   };
   g.add(wbText);
@@ -677,7 +695,7 @@ function buildRoom3(){
     prompt:'[E] 기밀 파일 읽기',
     dialog:{
       title:'기밀 파일 - 프로젝트 에코 최종 보고서',
-      content:'[극비]\n\n피험자 코드명: 에코\n실제 이름: ■■■■\n\n프로젝트 개요:\n피험자는 자발적으로 기억 소거 실험에 참여.\n목적: 트라우마 기억의 선택적 제거.\n\n문제: 피험자가 실험 도중 모든 기억을 잃음.\n현재 피험자는 자신이 "갇혀있다"고 인식.\n\n진실: 피험자는 언제든 나갈 수 있었다.\n이 시설의 모든 문은... 피험자 스스로\n잠근 것이다.\n\n최종 관찰 메모:\n"당신이 이 글을 읽고 있다면,\n 당신은 기억을 되찾기 시작한 것입니다.\n 출구 코드는 당신이 이미 알고 있습니다.\n 제08구역, 47번째 실험.\n 기억하세요."'
+      content:'[극비]\n\n피험자 코드명: 에코\n실제 이름: ■■■■\n\n프로젝트 개요:\n피험자는 자발적으로 기억 소거 실험에 참여.\n목적: 트라우마 기억의 선택적 제거.\n\n문제: 피험자가 실험 도중 모든 기억을 잃음.\n현재 피험자는 자신이 "갇혀있다"고 인식.\n\n진실: 피험자는 언제든 나갈 수 있었다.\n이 시설의 모든 문은... 피험자 스스로 잠근 것이다.\n\n최종 탈출 코드 생성 규칙:\n"당신이 지나온 문의 잠금장치 —\n각 해제 코드의 자릿수 합이\n당신의 기억의 무게입니다.\n두 방의 무게를 나란히 놓으세요.\n기억을 되짚으세요."'
     }
   };
   g.add(files);
@@ -692,7 +710,7 @@ function buildRoom3(){
     prompt:'[E] CCTV 모니터 확인',
     dialog:{
       title:'CCTV 모니터',
-      content:'모니터에 당신이 지나온 방들이 보인다.\n\n격리실... 연구실... 그리고 지금 이 방.\n\n화면 구석에 타임스탬프가 보인다.\n날짜가 전부 같다.\n\n같은 날, 같은 시간이 반복되고 있다.\n\n모니터 아래 작은 글씨:\n"루프 횟수: 47"'
+      content:'모니터에 당신이 지나온 방들이 보인다.\n\n격리실... 연구실... 그리고 지금 이 방.\n\n화면에 데이터가 표시되어 있다:\n\n격리실 해제 코드: ●●●● → 자릿수 합계: ??\n연구실 해제 코드: ●●● → 자릿수 합계: ??\n최종 코드 = 두 합계를 나란히 배열\n\n모니터 아래 작은 글씨:\n"루프 횟수: 47"'
     }
   };
   g.add(cctvMon);
@@ -739,7 +757,8 @@ function buildRoom3(){
   doorBack.userData={
     type:'door',targetRoom:1,
     prompt:'[E] 연구실로 돌아가기',
-    requires:null
+    requires:null,
+    spawnLocal:{x:0,z:-3.5},faceY:Math.PI
   };
   g.add(doorBack);
   interactables.push({mesh:doorBack,room:2});
@@ -939,6 +958,8 @@ function interact(){
       document.getElementById('code-display').textContent='';
       document.getElementById('code-result').textContent='';
       document.getElementById('code-input-overlay').style.display='flex';
+      state.paused=true;
+      document.body.classList.remove('playing');
       if(!isMobile)document.exitPointerLock();
       break;
 
@@ -949,7 +970,7 @@ function interact(){
         return;
       }
       sfxDoor();
-      transitionToRoom(data.targetRoom);
+      transitionToRoom(data.targetRoom,data.spawnLocal,data.faceY);
       break;
   }
 }
@@ -1022,10 +1043,9 @@ function closeCodePanel(){
   document.getElementById('code-input-overlay').style.display='none';
   state.codeTarget=null;
   state.codeBuffer='';
+  state.paused=false;
   if(!isMobile){
-    setTimeout(()=>{
-      if(!state.paused)renderer.domElement.requestPointerLock();
-    },100);
+    setTimeout(()=>renderer.domElement.requestPointerLock(),100);
   }
 }
 
@@ -1071,25 +1091,29 @@ function updateInventoryUI(){
 }
 
 // === ROOM TRANSITIONS ===
-function transitionToRoom(roomIndex){
+function transitionToRoom(roomIndex,spawnLocal,faceY){
   const fade=document.getElementById('fade-overlay');
   fade.style.opacity='1';
   state.paused=true;
 
   setTimeout(()=>{
-    // Hide all rooms, show target
     rooms.forEach((r,i)=>{r.visible=(i===roomIndex)});
     state.currentRoom=roomIndex;
 
-    // Position player
     const rc=ROOM_CONFIGS[roomIndex];
     const [ox,,oz]=rc.offset;
-    camera.position.set(ox,PLAYER_HEIGHT,oz);
+    const sx=ox+(spawnLocal?spawnLocal.x:0);
+    const sz=oz+(spawnLocal?spawnLocal.z:0);
+    camera.position.set(sx,PLAYER_HEIGHT,sz);
 
-    // Update room name
+    // Face direction: away from the door into the room
+    if(faceY!==undefined){
+      euler.set(0,faceY,0,'YXZ');
+      camera.quaternion.setFromEuler(euler);
+    }
+
     document.getElementById('room-name').textContent=rc.name;
 
-    // Update fog color per room
     const fogColors=[0x0a0a0a,0x050510,0x020208];
     scene.fog.color.setHex(fogColors[roomIndex]);
     scene.background.setHex(fogColors[roomIndex]);
@@ -1097,7 +1121,7 @@ function transitionToRoom(roomIndex){
     setTimeout(()=>{
       fade.style.opacity='0';
       state.paused=false;
-      if(!document.pointerLockElement){
+      if(!isMobile&&!document.pointerLockElement){
         renderer.domElement.requestPointerLock();
       }
     },600);
@@ -1109,15 +1133,16 @@ function showDialog(title,content){
   document.getElementById('dialog-title').textContent=title;
   document.getElementById('dialog-content').textContent=content;
   document.getElementById('dialog-overlay').style.display='flex';
+  state.paused=true;
+  document.body.classList.remove('playing');
   if(!isMobile)document.exitPointerLock();
 }
 
 function closeDialog(){
   document.getElementById('dialog-overlay').style.display='none';
+  state.paused=false;
   if(!isMobile){
-    setTimeout(()=>{
-      if(!state.paused)renderer.domElement.requestPointerLock();
-    },100);
+    setTimeout(()=>renderer.domElement.requestPointerLock(),100);
   }
 }
 
@@ -1371,29 +1396,7 @@ startGame=function(){
 };
 
 // Override pointer lock for mobile (skip it)
-if(isMobile){
-  const origTransition=transitionToRoom;
-  transitionToRoom=function(roomIndex){
-    const fade=document.getElementById('fade-overlay');
-    fade.style.opacity='1';
-    state.paused=true;
-    setTimeout(()=>{
-      rooms.forEach((r,i)=>{r.visible=(i===roomIndex)});
-      state.currentRoom=roomIndex;
-      const rc=ROOM_CONFIGS[roomIndex];
-      const [ox,,oz]=rc.offset;
-      camera.position.set(ox,PLAYER_HEIGHT,oz);
-      document.getElementById('room-name').textContent=rc.name;
-      const fogColors=[0x0a0a0a,0x050510,0x020208];
-      scene.fog.color.setHex(fogColors[roomIndex]);
-      scene.background.setHex(fogColors[roomIndex]);
-      setTimeout(()=>{
-        fade.style.opacity='0';
-        state.paused=false;
-      },600);
-    },800);
-  };
-}
+// Mobile override removed - transitionToRoom now handles mobile internally
 
 // === KEYBOARD SHORTCUT FOR DIALOG ===
 document.addEventListener('keydown',e=>{
