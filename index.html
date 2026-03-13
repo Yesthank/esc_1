@@ -6,7 +6,7 @@
 <title>프로젝트 에코 - 방탈출 3D</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-body{overflow:hidden;background:#000;font-family:'Segoe UI','Noto Sans KR',sans-serif;color:#fff;cursor:none}
+body{overflow:hidden;background:#000;font-family:'Segoe UI','Noto Sans KR',sans-serif;color:#fff;cursor:none;touch-action:none;-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
 #blocker{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);display:flex;align-items:center;justify-content:center;z-index:100;flex-direction:column}
 #title-screen{text-align:center}
 #title-screen h1{font-size:3.5em;letter-spacing:12px;color:#00e5ff;text-shadow:0 0 30px rgba(0,229,255,0.5);margin-bottom:10px;font-weight:300}
@@ -54,6 +54,27 @@ body{overflow:hidden;background:#000;font-family:'Segoe UI','Noto Sans KR',sans-
 #ending-screen .ending-text{max-width:500px;color:#888;line-height:2;font-size:0.95em;margin-bottom:30px}
 #ending-screen .stats{color:#555;font-size:0.85em;margin-bottom:30px}
 #msg-flash{position:fixed;top:40%;left:50%;transform:translate(-50%,-50%);z-index:250;pointer-events:none;opacity:0;font-size:1.1em;color:#00e5ff;text-align:center;transition:opacity 0.4s;text-shadow:0 0 20px rgba(0,229,255,0.5)}
+#mobile-controls{display:none;position:fixed;z-index:60;bottom:0;left:0;width:100%;height:100%;pointer-events:none}
+#mobile-joystick{position:absolute;bottom:30px;left:30px;width:120px;height:120px;border-radius:50%;background:rgba(255,255,255,0.08);border:2px solid rgba(255,255,255,0.2);pointer-events:auto;touch-action:none}
+#joystick-knob{position:absolute;top:50%;left:50%;width:40px;height:40px;margin:-20px 0 0 -20px;border-radius:50%;background:rgba(0,229,255,0.4);border:1px solid rgba(0,229,255,0.6);transition:none}
+#mobile-interact-btn{position:absolute;bottom:50px;right:30px;width:70px;height:70px;border-radius:50%;background:rgba(0,229,255,0.15);border:2px solid rgba(0,229,255,0.5);color:#00e5ff;font-size:1.1em;font-weight:bold;display:flex;align-items:center;justify-content:center;pointer-events:auto;touch-action:none;font-family:inherit}
+#mobile-look-area{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:auto;touch-action:none}
+@media(max-width:768px),(hover:none){
+  body{cursor:auto}
+  #crosshair::before,#crosshair::after{height:14px;width:14px}
+  #crosshair::before{width:2px;height:14px}
+  #crosshair::after{width:14px;height:2px}
+  #inventory-bar{bottom:10px;gap:4px}
+  .inv-slot{width:45px;height:45px;font-size:0.6em}
+  #hint-btn{bottom:10px;right:10px;padding:6px 10px;font-size:0.7em}
+  #hint-box{bottom:45px;right:10px;max-width:220px;font-size:0.8em}
+  #timer{font-size:1em;top:10px;right:10px}
+  #room-name{font-size:0.75em;top:10px;left:10px}
+  #title-screen h1{font-size:2em;letter-spacing:6px}
+  #title-screen h2{font-size:0.9em;letter-spacing:2px}
+  #title-screen .story{font-size:0.8em;padding:0 20px}
+  #start-btn{padding:12px 40px;font-size:1em}
+}
 </style>
 </head>
 <body>
@@ -123,6 +144,12 @@ body{overflow:hidden;background:#000;font-family:'Segoe UI','Noto Sans KR',sans-
 
 <button id="hint-btn" onclick="showHint()">힌트</button>
 <div id="hint-box"></div>
+
+<div id="mobile-controls">
+  <div id="mobile-look-area"></div>
+  <div id="mobile-joystick"><div id="joystick-knob"></div></div>
+  <div id="mobile-interact-btn">E</div>
+</div>
 
 <div id="fade-overlay"></div>
 <div id="msg-flash"></div>
@@ -760,11 +787,13 @@ function setupControls(){
     euler.x=Math.max(-Math.PI/2+0.1,Math.min(Math.PI/2-0.1,euler.x));
     camera.quaternion.setFromEuler(euler);
   });
-  document.addEventListener('click',()=>{
-    if(!isLocked&&!state.paused){
-      renderer.domElement.requestPointerLock();
-    }
-  });
+  if(!isMobile){
+    document.addEventListener('click',()=>{
+      if(!isLocked&&!state.paused){
+        renderer.domElement.requestPointerLock();
+      }
+    });
+  }
   document.addEventListener('pointerlockchange',()=>{
     isLocked=!!document.pointerLockElement;
     const blocker=document.getElementById('blocker');
@@ -794,7 +823,7 @@ function updateMovement(delta){
   direction.normalize();
 
   if(moveForward||moveBackward)velocity.z-=direction.z*MOVE_SPEED*delta;
-  if(moveLeft||moveRight)velocity.x-=direction.x*MOVE_SPEED*delta;
+  if(moveLeft||moveRight)velocity.x+=direction.x*MOVE_SPEED*delta;
 
   const forward=new THREE.Vector3();
   camera.getWorldDirection(forward);
@@ -897,7 +926,7 @@ function interact(){
       document.getElementById('code-display').textContent='';
       document.getElementById('code-result').textContent='';
       document.getElementById('code-input-overlay').style.display='flex';
-      document.exitPointerLock();
+      if(!isMobile)document.exitPointerLock();
       break;
 
     case'door':
@@ -980,10 +1009,11 @@ function closeCodePanel(){
   document.getElementById('code-input-overlay').style.display='none';
   state.codeTarget=null;
   state.codeBuffer='';
-  // Re-lock pointer after a brief delay
-  setTimeout(()=>{
-    if(!state.paused)renderer.domElement.requestPointerLock();
-  },100);
+  if(!isMobile){
+    setTimeout(()=>{
+      if(!state.paused)renderer.domElement.requestPointerLock();
+    },100);
+  }
 }
 
 // === DOOR VISUAL UPDATES ===
@@ -1066,14 +1096,16 @@ function showDialog(title,content){
   document.getElementById('dialog-title').textContent=title;
   document.getElementById('dialog-content').textContent=content;
   document.getElementById('dialog-overlay').style.display='flex';
-  document.exitPointerLock();
+  if(!isMobile)document.exitPointerLock();
 }
 
 function closeDialog(){
   document.getElementById('dialog-overlay').style.display='none';
-  setTimeout(()=>{
-    if(!state.paused)renderer.domElement.requestPointerLock();
-  },100);
+  if(!isMobile){
+    setTimeout(()=>{
+      if(!state.paused)renderer.domElement.requestPointerLock();
+    },100);
+  }
 }
 
 // === FLASH MESSAGE ===
@@ -1130,7 +1162,7 @@ function triggerEnding(){
   const fade=document.getElementById('fade-overlay');
   fade.style.transition='opacity 2s';
   fade.style.opacity='1';
-  document.exitPointerLock();
+  if(!isMobile)document.exitPointerLock();
   state.paused=true;
 
   setTimeout(()=>{
@@ -1197,6 +1229,157 @@ function startGame(){
 
   // Try to lock pointer
   renderer.domElement.requestPointerLock();
+}
+
+// === MOBILE DETECTION & CONTROLS ===
+const isMobile=(('ontouchstart' in window)||(navigator.maxTouchPoints>0))&&(window.innerWidth<=1024);
+let joystickActive=false,joystickStartX=0,joystickStartY=0,joystickDx=0,joystickDy=0;
+let lookTouchId=null,lookLastX=0,lookLastY=0;
+
+function setupMobile(){
+  if(!isMobile)return;
+  document.getElementById('mobile-controls').style.display='block';
+  document.getElementById('crosshair').style.display='block';
+  // Hide the keys hint for desktop
+  const keysEl=document.querySelector('#click-to-play .keys');
+  if(keysEl)keysEl.textContent='조이스틱 이동 | 화면 터치 시점 | E 버튼 상호작용';
+
+  const joystick=document.getElementById('mobile-joystick');
+  const knob=document.getElementById('joystick-knob');
+  const lookArea=document.getElementById('mobile-look-area');
+  const interactBtn=document.getElementById('mobile-interact-btn');
+
+  // Joystick
+  joystick.addEventListener('touchstart',e=>{
+    e.preventDefault();e.stopPropagation();
+    const t=e.changedTouches[0];
+    const rect=joystick.getBoundingClientRect();
+    joystickStartX=rect.left+rect.width/2;
+    joystickStartY=rect.top+rect.height/2;
+    joystickActive=true;
+  },{passive:false});
+
+  joystick.addEventListener('touchmove',e=>{
+    e.preventDefault();e.stopPropagation();
+    if(!joystickActive)return;
+    const t=e.changedTouches[0];
+    const maxR=50;
+    let dx=t.clientX-joystickStartX;
+    let dy=t.clientY-joystickStartY;
+    const dist=Math.sqrt(dx*dx+dy*dy);
+    if(dist>maxR){dx=dx/dist*maxR;dy=dy/dist*maxR}
+    knob.style.transform='translate('+dx+'px,'+dy+'px)';
+    joystickDx=dx/maxR;
+    joystickDy=dy/maxR;
+    // Map to movement
+    moveForward=joystickDy<-0.2;
+    moveBackward=joystickDy>0.2;
+    moveLeft=joystickDx<-0.2;
+    moveRight=joystickDx>0.2;
+  },{passive:false});
+
+  const stopJoystick=e=>{
+    e.preventDefault();
+    joystickActive=false;joystickDx=0;joystickDy=0;
+    knob.style.transform='translate(0,0)';
+    moveForward=false;moveBackward=false;moveLeft=false;moveRight=false;
+  };
+  joystick.addEventListener('touchend',stopJoystick,{passive:false});
+  joystick.addEventListener('touchcancel',stopJoystick,{passive:false});
+
+  // Look area (right side of screen for camera rotation)
+  lookArea.addEventListener('touchstart',e=>{
+    // Ignore touches on joystick/interact button areas
+    const t=e.changedTouches[0];
+    const jRect=joystick.getBoundingClientRect();
+    const iRect=interactBtn.getBoundingClientRect();
+    const pad=20;
+    if(t.clientX>=jRect.left-pad&&t.clientX<=jRect.right+pad&&t.clientY>=jRect.top-pad&&t.clientY<=jRect.bottom+pad)return;
+    if(t.clientX>=iRect.left-pad&&t.clientX<=iRect.right+pad&&t.clientY>=iRect.top-pad&&t.clientY<=iRect.bottom+pad)return;
+    if(lookTouchId!==null)return;
+    lookTouchId=t.identifier;
+    lookLastX=t.clientX;lookLastY=t.clientY;
+  },{passive:true});
+
+  lookArea.addEventListener('touchmove',e=>{
+    for(let i=0;i<e.changedTouches.length;i++){
+      const t=e.changedTouches[i];
+      if(t.identifier===lookTouchId){
+        const sensitivity=0.004;
+        const dx=t.clientX-lookLastX;
+        const dy=t.clientY-lookLastY;
+        euler.setFromQuaternion(camera.quaternion);
+        euler.y-=dx*sensitivity;
+        euler.x-=dy*sensitivity;
+        euler.x=Math.max(-Math.PI/2+0.1,Math.min(Math.PI/2-0.1,euler.x));
+        camera.quaternion.setFromEuler(euler);
+        lookLastX=t.clientX;lookLastY=t.clientY;
+        break;
+      }
+    }
+  },{passive:true});
+
+  const stopLook=e=>{
+    for(let i=0;i<e.changedTouches.length;i++){
+      if(e.changedTouches[i].identifier===lookTouchId){lookTouchId=null;break}
+    }
+  };
+  lookArea.addEventListener('touchend',stopLook,{passive:true});
+  lookArea.addEventListener('touchcancel',stopLook,{passive:true});
+
+  // Interact button
+  interactBtn.addEventListener('touchstart',e=>{
+    e.preventDefault();e.stopPropagation();
+    interact();
+    interactBtn.style.background='rgba(0,229,255,0.4)';
+    setTimeout(()=>{interactBtn.style.background='rgba(0,229,255,0.15)'},150);
+  },{passive:false});
+}
+
+// Override startGame for mobile
+const _origStartGame=startGame;
+startGame=function(){
+  if(isMobile){
+    initAudio();
+    sfxAmbient();
+    document.getElementById('title-screen').style.display='none';
+    document.getElementById('blocker').style.display='none';
+    init();
+    rooms.forEach((r,i)=>{r.visible=(i===0)});
+    state.currentRoom=0;
+    state.startTime=Date.now();
+    state.paused=false;
+    isLocked=true; // Simulate locked for mobile
+    document.getElementById('room-name').textContent='격리실';
+    setupMobile();
+  }else{
+    _origStartGame();
+  }
+};
+
+// Override pointer lock for mobile (skip it)
+if(isMobile){
+  const origTransition=transitionToRoom;
+  transitionToRoom=function(roomIndex){
+    const fade=document.getElementById('fade-overlay');
+    fade.style.opacity='1';
+    state.paused=true;
+    setTimeout(()=>{
+      rooms.forEach((r,i)=>{r.visible=(i===roomIndex)});
+      state.currentRoom=roomIndex;
+      const rc=ROOM_CONFIGS[roomIndex];
+      const [ox,,oz]=rc.offset;
+      camera.position.set(ox,PLAYER_HEIGHT,oz);
+      document.getElementById('room-name').textContent=rc.name;
+      const fogColors=[0x0a0a0a,0x050510,0x020208];
+      scene.fog.color.setHex(fogColors[roomIndex]);
+      scene.background.setHex(fogColors[roomIndex]);
+      setTimeout(()=>{
+        fade.style.opacity='0';
+        state.paused=false;
+      },600);
+    },800);
+  };
 }
 
 // === KEYBOARD SHORTCUT FOR DIALOG ===
